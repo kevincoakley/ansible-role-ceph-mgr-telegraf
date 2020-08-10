@@ -1,2 +1,6 @@
 ---
-# tasks file for ansible-role-ceph-mgr-telegraf
+- name: include container-facts.yml
+  include_tasks: container-facts.yml
+
+- name: include mgr-telegraf.yml
+  include_tasks: mgr-telegraf.yml

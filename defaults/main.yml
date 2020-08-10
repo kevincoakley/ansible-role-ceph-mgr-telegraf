@@ -1,2 +1,6 @@
 ---
-# defaults file for ansible-role-ceph-mgr-telegraf
+cluster: ceph
+mon_group_name: mons
+# mgr_telegraf:
+#   address: udp://:8094
+#   interval: 60

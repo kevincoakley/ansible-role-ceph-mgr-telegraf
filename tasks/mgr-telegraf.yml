@@ -1,0 +1,96 @@
+---
+- name: mgr telegraf related tasks
+  when: mgr_telegraf is defined
+  block:
+    - name: get a list all mgr modules
+      command: >-
+        {{ container_exec_cmd | default('') }}
+        ceph
+        --connect-timeout 5
+        --cluster {{ cluster }}
+        mgr module ls
+        -f json
+      changed_when: false
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      register: modules_list
+      until: modules_list is succeeded
+      run_once: true
+
+    - name: configure the telegraf mgr module if it is enabled
+      when: "'telegraf' in (modules_list.stdout | from_json).enabled_modules"
+      block:
+        - name: get the telegraf mgr module config
+          command: >-
+            {{ container_exec_cmd | default('') }}
+            ceph
+            --connect-timeout 5
+            --cluster {{ cluster }}
+            telegraf config-show
+            -f json
+          changed_when: false
+          delegate_to: "{{ groups[mon_group_name][0] }}"
+          register: telegraf_config_show
+          run_once: true
+      rescue:
+        - name: disable the telegraf mgr module
+          command: >-
+            {{ container_exec_cmd | default('') }}
+            ceph
+            --connect-timeout 5
+            --cluster {{ cluster }}
+            mgr module
+            disable telegraf
+          delegate_to: "{{ groups[mon_group_name][0] }}"
+          register: disable_telegraf
+          until: disable_telegraf is succeeded
+          run_once: true
+
+        - name: enable the telegraf mgr module
+          command: >-
+            {{ container_exec_cmd | default('') }}
+            ceph
+            --connect-timeout 5
+            --cluster {{ cluster }}
+            mgr module
+            enable telegraf
+          delegate_to: "{{ groups[mon_group_name][0] }}"
+          register: enable_telegraf
+          until: enable_telegraf is succeeded
+          run_once: true
+
+        - name: get the telegraf mgr module config
+          command: >-
+            {{ container_exec_cmd | default('') }}
+            ceph
+            --connect-timeout 5
+            --cluster {{ cluster }}
+            telegraf config-show
+            -f json
+          changed_when: false
+          delegate_to: "{{ groups[mon_group_name][0] }}"
+          register: telegraf_config_show
+          run_once: true
+
+    - name: update the telegraf mgr module address setting
+      command: >-
+        {{ container_exec_cmd | default('') }}
+        ceph
+        --connect-timeout 5
+        --cluster {{ cluster }}
+        telegraf config-set
+        address {{ mgr_telegraf.address }}
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      run_once: true
+      when: mgr_telegraf.address != (telegraf_config_show.stdout | from_json).address
+
+    - name: update the telegraf mgr module interval setting
+      command: >-
+        {{ container_exec_cmd | default('') }}
+        ceph
+        --connect-timeout 5
+        --cluster {{ cluster }}
+        telegraf config-set
+        interval {{ mgr_telegraf.interval }}
+      delegate_to: "{{ groups[mon_group_name][0] }}"
+      run_once: true
+      when: mgr_telegraf.interval != (telegraf_config_show.stdout | from_json).interval
