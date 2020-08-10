@@ -1,0 +1,1 @@
+# ansible-role-ceph-mgr-telegraf
